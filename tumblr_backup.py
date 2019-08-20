@@ -282,7 +282,7 @@ def get_style():
     except (EnvironmentError, HTTPException):
         return
     for match in re.findall(r'(?s)<style type=.text/css.>(.*?)</style>', page_data.decode('utf-8')):
-        css = match.strip().decode(encoding, 'replace')
+        css = match.strip()#.decode(encoding, 'replace')
         if not '\n' in css:
             continue
         css = css.replace('\r', '').replace('\n    ', '\n')
