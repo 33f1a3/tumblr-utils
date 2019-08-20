@@ -1,6 +1,6 @@
 # tumblr-utils
 
-This is a collection of utilities dealing with Tumblr blogs.
+This is a collection of utilities dealing with Tumblr blogs, forked from [here](https://github.com/bbolli/tumblr-utils) with minimal editing to make it Python 3 compatible.
 
 - `tumble.py` creates new posts from RSS or Atom feeds
 - `tumblr_backup.py` makes a local backup of posts and images
@@ -11,7 +11,7 @@ These scripts are or have been useful to me over the years.
 More documentation can be found in each script's docstring or in
 [tumblr_backup.md](https://github.com/bbolli/tumblr-utils/blob/master/tumblr_backup.md).
 
-The utilities run under Python 2.7.
+The utilities run under Python 3.x.
 
 ### Notice
 
