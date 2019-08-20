@@ -9,7 +9,7 @@ from datetime import datetime
 import errno
 from glob import glob
 import hashlib
-from httplib import HTTPException
+from http.client import HTTPException
 import imghdr
 try:
     import json
@@ -18,15 +18,13 @@ except ImportError:
 import locale
 import os
 from os.path import join, split, splitext
-import Queue
+import queue
 import re
 import ssl
 import sys
 import threading
 import time
 import urllib
-import urllib2
-import urlparse
 from xml.sax.saxutils import escape
 
 try:
@@ -72,7 +70,7 @@ save_folder = ''
 media_folder = ''
 
 # constant names
-root_folder = os.getcwdu()
+root_folder = os.getcwd()
 post_dir = 'posts'
 json_dir = 'json'
 media_dir = 'media'
@@ -117,10 +115,10 @@ have_ssl_ctx = sys.version_info >= (2, 7, 9)
 if have_ssl_ctx:
     ssl_ctx = ssl.create_default_context()
     def urlopen(url):
-        return urllib2.urlopen(url, timeout=HTTP_TIMEOUT, context=ssl_ctx)
+        return urllib.request.urlopen(url, timeout=HTTP_TIMEOUT, context=ssl_ctx)
 else:
     def urlopen(url):
-        return urllib2.urlopen(url, timeout=HTTP_TIMEOUT)
+        return urllib.request.urlopen(url, timeout=HTTP_TIMEOUT)
 
 
 def log(account, s):
@@ -166,7 +164,7 @@ def open_media(*parts):
 def strftime(format, t=None):
     if t is None:
         t = time.localtime()
-    return time.strftime(format, t).decode(time_encoding)
+    return time.strftime(format, t)
 
 
 def get_api_url(account):
@@ -199,7 +197,7 @@ def apiparse(base, count, start=0):
     params = {'api_key': API_KEY, 'limit': count, 'reblog_info': 'true'}
     if start > 0:
         params['offset'] = start
-    url = base + '?' + urllib.urlencode(params)
+    url = base + '?' + urllib.parse.urlencode(params)
     for _ in range(10):
         try:
             resp = urlopen(url)
@@ -207,9 +205,9 @@ def apiparse(base, count, start=0):
         except (EnvironmentError, HTTPException) as e:
             sys.stderr.write("%s getting %s\n" % (e, url))
             continue
-        if resp.info().gettype() == 'application/json':
+        if resp.info().get_content_type() == 'application/json':
             break
-        sys.stderr.write("Unexpected Content-Type: '%s'\n" % resp.info().gettype())
+        sys.stderr.write("Unexpected Content-Type: '%s'\n" % resp.info().get_content_type())
         return None
     else:
         return None
@@ -217,7 +215,7 @@ def apiparse(base, count, start=0):
         doc = json.loads(data)
     except ValueError as e:
         sys.stderr.write('%s: %s\n%d %s %s\n%r\n' % (
-            e.__class__.__name__, e, resp.getcode(), resp.msg, resp.info().gettype(), data
+            e.__class__.__name__, e, resp.getcode(), resp.msg, resp.info().get_content_type(), data
         ))
         return None
     return doc if doc.get('meta', {}).get('status', 0) == 200 else None
@@ -283,7 +281,7 @@ def get_style():
         page_data = resp.read()
     except (EnvironmentError, HTTPException):
         return
-    for match in re.findall(r'(?s)<style type=.text/css.>(.*?)</style>', page_data):
+    for match in re.findall(r'(?s)<style type=.text/css.>(.*?)</style>', page_data.decode('utf-8')):
         css = match.strip().decode(encoding, 'replace')
         if not '\n' in css:
             continue
@@ -325,7 +323,7 @@ class Index:
     def save_year(self, idx, index_dir, year):
         idx.write('<h3>%s</h3>\n<ul>\n' % year)
         for month in sorted(self.index[year].keys(), reverse=options.reverse_index):
-            tm = time.localtime(time.mktime([year, month, 3, 0, 0, 0, 0, 0, -1]))
+            tm = time.localtime(time.mktime((year, month, 3, 0, 0, 0, 0, 0, -1)))
             month_name = self.save_month(index_dir, year, month, tm)
             idx.write(u'    <li><a href=%s/%s title="%d post(s)">%s</a></li>\n' % (
                 archive_dir, month_name, len(self.index[year][month]),
@@ -791,7 +789,7 @@ class TumblrPost:
             'noplaylist': True,
             'continuedl': True,
             'nooverwrites': True,
-            'retries': 3000,		
+            'retries': 3000,        
             'fragment_retries': 3000,
             'ignoreerrors': True
         }
@@ -852,7 +850,7 @@ class TumblrPost:
         if image_url.startswith('//'):
             image_url = 'http:' + image_url
         image_url = self.maxsize_image_url(image_url)
-        path = urlparse.urlparse(image_url).path
+        path = urllib.parse.urlparse(image_url).path
         image_filename = path.split('/')[-1]
         if not image_filename or not image_url.startswith('http'):
             return match.group(0)
@@ -869,7 +867,7 @@ class TumblrPost:
         poster_url = match.group(2)
         if poster_url.startswith('//'):
             poster_url = 'http:' + poster_url
-        path = urlparse.urlparse(poster_url).path
+        path = urllib.parse.urlparse(poster_url).path
         poster_filename = path.split('/')[-1]
         if not poster_filename or not poster_url.startswith('http'):
             return match.group(0)
@@ -888,7 +886,7 @@ class TumblrPost:
         video_url = match.group(2)
         if video_url.startswith('//'):
             video_url = 'http:' + video_url
-        path = urlparse.urlparse(video_url).path
+        path = urllib.parse.urlparse(video_url).path
         video_filename = path.split('/')[-1]
         if not video_filename or not video_url.startswith('http'):
             return match.group(0)
@@ -982,7 +980,7 @@ class TumblrPost:
         tag_disp = escape(TAG_FMT % tag)
         if not TAGLINK_FMT:
             return tag_disp + ' '
-        url = TAGLINK_FMT % {'domain': blog_name, 'tag': urllib.quote(tag.encode('utf-8'))}
+        url = TAGLINK_FMT % {'domain': blog_name, 'tag': urllib.parse.quote(tag.encode('utf-8'))}
         return u'<a href=%s>%s</a>\n' % (url, tag_disp)
 
     def save_post(self):
@@ -1047,7 +1045,7 @@ class LocalPost:
 class ThreadPool:
 
     def __init__(self, thread_count=20, max_queue=1000):
-        self.queue = Queue.Queue(max_queue)
+        self.queue = queue.Queue(max_queue)
         self.quit = threading.Event()
         self.abort = threading.Event()
         self.threads = [threading.Thread(target=self.handler) for _ in range(thread_count)]
@@ -1073,7 +1071,7 @@ class ThreadPool:
         while not self.abort.is_set():
             try:
                 work = self.queue.get(True, 0.1)
-            except Queue.Empty:
+            except queue.Empty:
                 if self.quit.is_set():
                     break
             else:
