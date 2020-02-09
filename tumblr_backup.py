@@ -188,8 +188,11 @@ def set_period():
     if len(options.period) == 8:
         i = 2
         tm[2] = int(options.period[6:8])
+    tm = tuple(tm)
     options.p_start = time.mktime(tm)
+    tm = list(tm)
     tm[i] += 1
+    tm = tuple(tm)
     options.p_stop = time.mktime(tm)
 
 
